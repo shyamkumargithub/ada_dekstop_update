@@ -23,4 +23,4 @@ def get_app_version() -> str:
             return version_file.read_text(encoding="utf-8").strip()
 
     # 3. Local development fallback
-    return "1.0.0-dev"
+    return "2.0.0"

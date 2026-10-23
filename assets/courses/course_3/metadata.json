@@ -1,0 +1,27 @@
+{
+  "course_id": "course_3",
+  "title": "Course 3: Enterprise Deployment & Offline Content Delivery (V2 Exclusive)",
+  "description": "Brand new offline course bundled in Version 2.0.0. Covers automated multi-platform compilation, zero-downtime silent updates, and tamper-resistant offline storage.",
+  "version_introduced": "2.0.0",
+  "is_free": true,
+  "lessons": [
+    {
+      "id": "c3_l1",
+      "title": "Lesson 1: Zero-Downtime Silent Update Execution",
+      "duration": "20 mins",
+      "content": "Techniques for in-place binary swapping, process detachment, and relaunch without corrupting running user state."
+    },
+    {
+      "id": "c3_l2",
+      "title": "Lesson 2: Cross-Platform Packaging Pipelines",
+      "duration": "25 mins",
+      "content": "Deep dive into PyInstaller AST scanners, dynamic symbol resolution, Inno Setup scripting, and macOS DMG packaging."
+    },
+    {
+      "id": "c3_l3",
+      "title": "Lesson 3: Robust Error Handling & Offline Fallbacks",
+      "duration": "30 mins",
+      "content": "Designing bulletproof desktop software that performs flawlessly in disconnected, air-gapped environments."
+    }
+  ]
+}

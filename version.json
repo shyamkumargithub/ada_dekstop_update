@@ -1,13 +1,13 @@
 {
-  "version": "1.0.0",
-  "release_notes": "**Full Changelog**: https://github.com/shyamkumargithub/ada_dekstop_update/commits/v1.0.0",
+  "version": "2.0.0",
+  "release_notes": "Added Course 2 and Course 3 with offline embedded content, in-app update button, and UI improvements.",
   "windows": {
-    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v1.0.0/CourseApp-v1.0.0-Windows-Setup.exe"
+    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v2.0.0/CourseApp-v2.0.0-Windows-Setup.exe"
   },
   "macos": {
-    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v1.0.0/CourseApp-v1.0.0-macOS.dmg"
+    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v2.0.0/CourseApp-v2.0.0-macOS.dmg"
   },
   "linux": {
-    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v1.0.0/CourseApp-v1.0.0-amd64.deb"
+    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v2.0.0/CourseApp-v2.0.0-amd64.deb"
   }
 }

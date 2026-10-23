@@ -40,6 +40,79 @@ from src.version import get_app_version
 CHECK_INTERVAL_SECONDS = 86400  # 24 hours in seconds
 
 
+class CourseViewerDialog(QDialog):
+    """Offline interactive viewer for embedded course lessons and syllabus."""
+
+    def __init__(self, course_data: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(course_data.get("title", "Course Viewer"))
+        self.resize(700, 520)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 16)
+
+        header = QLabel(f"<h2>{course_data.get('title', 'Course')}</h2>")
+        header.setStyleSheet("color: #1a237e;")
+        layout.addWidget(header)
+
+        desc = QLabel(course_data.get("description", ""))
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #555; font-size: 13px;")
+        layout.addWidget(desc)
+
+        divider = QFrame()
+        divider.setFrameShape(QFrame.Shape.HLine)
+        divider.setStyleSheet("color: #ddd;")
+        layout.addWidget(divider)
+
+        lessons_title = QLabel("<b>Embedded Lessons (Offline Ready):</b>")
+        layout.addWidget(lessons_title)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        lessons_widget = QWidget()
+        lessons_layout = QVBoxLayout(lessons_widget)
+        lessons_layout.setSpacing(10)
+
+        for l in course_data.get("lessons", []):
+            lesson_frame = QFrame()
+            lesson_frame.setStyleSheet(
+                "QFrame { background-color: #f7f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; }"
+            )
+            lf_layout = QVBoxLayout(lesson_frame)
+            lf_layout.setSpacing(6)
+
+            l_header = QHBoxLayout()
+            title = QLabel(f"<b>{l.get('title', 'Lesson')}</b>")
+            title.setStyleSheet("font-size: 13px; color: #222;")
+            duration = QLabel(f"⏱ {l.get('duration', '')}")
+            duration.setStyleSheet("color: #666; font-size: 11px; font-weight: bold;")
+            l_header.addWidget(title)
+            l_header.addStretch()
+            l_header.addWidget(duration)
+            lf_layout.addLayout(l_header)
+
+            content = QLabel(l.get("content", ""))
+            content.setWordWrap(True)
+            content.setStyleSheet("color: #444; font-size: 12px; margin-top: 4px;")
+            lf_layout.addWidget(content)
+
+            lessons_layout.addWidget(lesson_frame)
+
+        lessons_layout.addStretch()
+        scroll.setWidget(lessons_widget)
+        layout.addWidget(scroll)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.setDefault(True)
+        close_btn.clicked.connect(self.accept)
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
+
+
 class EnrollmentDialog(QDialog):
     """Dialog for offline course license verification using the embedded public key."""
 
@@ -119,7 +192,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("CourseApp - Offline Embedded Learning")
-        self.resize(960, 680)
+        self.resize(980, 700)
 
         # Persistent user data directory (never touched by app updates)
         self.user_data_path = QStandardPaths.writableLocation(
@@ -187,7 +260,9 @@ class MainWindow(QMainWindow):
         self.cards_layout.setContentsMargins(24, 24, 24, 24)
         self.cards_layout.setSpacing(16)
 
-        # Header
+        # Header Row
+        header_row = QHBoxLayout()
+
         header_box = QVBoxLayout()
         headline = QLabel(
             f"CourseApp v{QCoreApplication.applicationVersion()} (Offline Desktop Player)"
@@ -198,13 +273,26 @@ class MainWindow(QMainWindow):
         info_label = QLabel(
             f"<b>Persistent License Directory:</b> {self.user_data_path}<br>"
             "<span style='color: #666; font-size: 11px;'>"
-            "When updating from Version 1 to Version 2, application binaries and embedded courses update "
+            "When updating across versions, application binaries and embedded courses update "
             "without deleting your saved licenses in the persistent directory.</span>"
         )
         info_label.setStyleSheet("margin-top: 4px; font-size: 12px; color: #444;")
         header_box.addWidget(info_label)
 
-        self.cards_layout.addLayout(header_box)
+        header_row.addLayout(header_box)
+        header_row.addStretch()
+
+        # Update App Button
+        self.update_app_btn = QPushButton("🔄 Check for Updates")
+        self.update_app_btn.setFixedHeight(34)
+        self.update_app_btn.setStyleSheet(
+            "QPushButton { background-color: #0288d1; color: white; font-weight: bold; font-size: 12px; padding: 0 16px; border-radius: 4px; }"
+            "QPushButton:hover { background-color: #0277bd; }"
+        )
+        self.update_app_btn.clicked.connect(self.trigger_manual_update_check)
+        header_row.addWidget(self.update_app_btn)
+
+        self.cards_layout.addLayout(header_row)
 
         divider = QFrame()
         divider.setFrameShape(QFrame.Shape.HLine)
@@ -230,6 +318,10 @@ class MainWindow(QMainWindow):
         file_menu.addAction(exit_action)
 
         help_menu = menu.addMenu("&Help")
+        update_action = QAction("&Check for Updates...", self)
+        update_action.triggered.connect(self.trigger_manual_update_check)
+        help_menu.addAction(update_action)
+
         about_action = QAction("&About CourseApp", self)
         about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
@@ -315,7 +407,7 @@ class MainWindow(QMainWindow):
                 "background-color: #1976d2; color: white; font-weight: bold; padding: 6px 14px; border-radius: 4px;"
             )
             play_btn.clicked.connect(
-                lambda checked, cid=course_id, ct=course.get("title"): self.open_course_view(cid, ct)
+                lambda checked, c=course: self.open_course_view(c)
             )
             btn_row.addWidget(play_btn)
         else:
@@ -336,13 +428,16 @@ class MainWindow(QMainWindow):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self.refresh_courses_ui()
 
-    def open_course_view(self, course_id: str, title: str):
-        QMessageBox.information(
-            self,
-            "Course Viewer",
-            f"Opening offline content for '{title}' (ID: {course_id}).\n"
-            "All content is embedded and operates fully offline without internet connection.",
-        )
+    def open_course_view(self, course_data: dict):
+        dlg = CourseViewerDialog(course_data, self)
+        dlg.exec()
+
+    @Slot()
+    def trigger_manual_update_check(self):
+        """Directly triggers the update flow and opens the About dialog to show progress."""
+        dialog = AboutDialog(self)
+        dialog.start_update_check()
+        dialog.exec()
 
     @Slot()
     def maybe_run_daily_update_check(self):
