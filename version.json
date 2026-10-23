@@ -1,6 +1,6 @@
 {
   "version": "2.0.0",
-  "release_notes": "Added Course 2 and Course 3 with offline embedded content, in-app update button, and UI improvements.",
+  "release_notes": "**Full Changelog**: https://github.com/shyamkumargithub/ada_dekstop_update/compare/v1.0.0...v2.0.0",
   "windows": {
     "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v2.0.0/CourseApp-v2.0.0-Windows-Setup.exe"
   },
