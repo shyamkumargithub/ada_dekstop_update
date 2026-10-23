@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "release_notes": "Initial release of CourseApp with offline embedded Course 1, license verification, and cross-platform updater.",
+  "windows": {
+    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v1.0.0/CourseApp-v1.0.0-Windows-Setup.exe"
+  },
+  "macos": {
+    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v1.0.0/CourseApp-v1.0.0-macOS.dmg"
+  },
+  "linux": {
+    "url": "https://github.com/shyamkumargithub/ada_dekstop_update/releases/download/v1.0.0/CourseApp-v1.0.0-amd64.deb"
+  }
+}

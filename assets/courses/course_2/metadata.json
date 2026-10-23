@@ -1,0 +1,21 @@
+{
+  "course_id": "course_2",
+  "title": "Course 2: Advanced Offline Application Architecture & Security",
+  "description": "Offline embedded course bundled in Version 2. Requires public-key license enrollment to unlock.",
+  "version_introduced": "2.0.0",
+  "is_free": false,
+  "lessons": [
+    {
+      "id": "c2_l1",
+      "title": "Lesson 1: Ed25519 Cryptographic License Enrollment",
+      "duration": "25 mins",
+      "content": "Verify digital signatures locally with an embedded public key to protect offline content."
+    },
+    {
+      "id": "c2_l2",
+      "title": "Lesson 2: Cross-Platform Packaging & Silent Updates",
+      "duration": "30 mins",
+      "content": "Automating Windows Inno Setup, macOS DMG, and Ubuntu DEB builds via GitHub Actions matrix."
+    }
+  ]
+}

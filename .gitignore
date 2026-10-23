@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+build/
+dist/
+output/
+build_deb/
+.venv/
+env/
+src/_version.py
+version_info.txt
+release_assets/
+.DS_Store

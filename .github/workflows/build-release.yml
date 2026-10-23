@@ -1,0 +1,280 @@
+name: Build and Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: windows-installer
+            asset_path: output/*.exe
+          - os: macos-latest
+            artifact_name: macos-dmg
+            asset_path: dist/*.dmg
+          - os: ubuntu-latest
+            artifact_name: ubuntu-deb
+            asset_path: dist/*.deb
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ---------------- WINDOWS BUILD ----------------
+      - name: Inject Version & Build Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          $parts = $tag.Split('.')
+          $major = if ($parts.Length -gt 0) { [int]$parts[0] } else { 1 }
+          $minor = if ($parts.Length -gt 1) { [int]$parts[1] } else { 0 }
+          $patch = if ($parts.Length -gt 2) { [int]$parts[2] } else { 0 }
+          $build = 0
+
+          echo "CLEAN_VERSION=$tag" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Force -Path "src"
+          Set-Content -Path "src/_version.py" -Value "__version__ = '$tag'" -Encoding utf8
+
+          $versionInfo = @"
+          VSVersionInfo(
+            ffi=FixedFileInfo(
+              filevers=($major, $minor, $patch, $build),
+              prodvers=($major, $minor, $patch, $build),
+              mask=0x3f,
+              flags=0x0,
+              OS=0x40004,
+              fileType=0x1,
+              subtype=0x0,
+              date=(0, 0)
+            ),
+            kids=[
+              StringFileInfo(
+                [
+                  StringTable(
+                    '040904B0',
+                    [
+                      StringStruct('CompanyName', 'AdaTheCoder'),
+                      StringStruct('FileDescription', 'Offline Course Desktop Player'),
+                      StringStruct('FileVersion', '$major.$minor.$patch.$build'),
+                      StringStruct('InternalName', 'CourseApp'),
+                      StringStruct('OriginalFilename', 'CourseApp.exe'),
+                      StringStruct('ProductName', 'CourseApp'),
+                      StringStruct('ProductVersion', '$tag')
+                    ]
+                  )
+                ]
+              ),
+              VarFileInfo([VarStruct('Translation', [1033, 1200])])
+            ]
+          )
+          "@
+          Set-Content -Path "version_info.txt" -Value $versionInfo -Encoding utf8
+
+          pyinstaller --noconfirm --onedir --windowed `
+            --name "CourseApp" `
+            --icon "assets/icon.ico" `
+            --version-file "version_info.txt" `
+            --add-data "assets;assets" `
+            main.py
+
+      - name: Compile Windows Installer
+        if: runner.os == 'Windows'
+        uses: Minisug/inno-setup-action@v1
+        with:
+          path: installer.iss
+          options: /DMyAppVersion=${{ env.CLEAN_VERSION }}
+
+      # ---------------- MACOS BUILD ----------------
+      - name: Inject Version & Build macOS
+        if: runner.os == 'macOS'
+        run: |
+          CLEAN_VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p src
+          echo "__version__ = '${CLEAN_VERSION}'" > src/_version.py
+
+          pyinstaller --noconfirm --onedir --windowed \
+            --name "CourseApp" \
+            --icon "assets/icon.ico" \
+            --add-data "assets:assets" \
+            main.py
+
+          npm install -g create-dmg
+          create-dmg dist/CourseApp.app dist/ || true
+          TAG_NAME="${{ github.ref_name }}"
+          mv dist/CourseApp*.dmg "dist/CourseApp-${TAG_NAME}-macOS.dmg"
+
+      # ---------------- UBUNTU BUILD ----------------
+      - name: Install Linux Libs & Build
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3
+
+          CLEAN_VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p src
+          echo "__version__ = '${CLEAN_VERSION}'" > src/_version.py
+
+          pyinstaller --noconfirm --onedir --windowed \
+            --name "courseapp" \
+            --add-data "assets:assets" \
+            main.py
+
+          TAG_NAME="${{ github.ref_name }}"
+          VERSION="${TAG_NAME#v}"
+          DEB_DIR="build_deb"
+          mkdir -p "${DEB_DIR}/DEBIAN"
+          mkdir -p "${DEB_DIR}/opt/courseapp"
+          mkdir -p "${DEB_DIR}/usr/share/applications"
+          mkdir -p "${DEB_DIR}/usr/bin"
+
+          cp -r dist/courseapp/* "${DEB_DIR}/opt/courseapp/"
+          ln -s /opt/courseapp/courseapp "${DEB_DIR}/usr/bin/courseapp"
+
+          cat <<EOF > "${DEB_DIR}/usr/share/applications/courseapp.desktop"
+          [Desktop Entry]
+          Name=CourseApp
+          Exec=/usr/bin/courseapp
+          Type=Application
+          Categories=Education;
+          Terminal=false
+          EOF
+
+          cat <<EOF > "${DEB_DIR}/DEBIAN/control"
+          Package: courseapp
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: AdaTheCoder <dev@example.com>
+          Description: PySide6 Offline Course Desktop Player
+          EOF
+
+          dpkg-deb --build --root-owner-group "${DEB_DIR}" "dist/CourseApp-${TAG_NAME}-amd64.deb"
+
+      # ---------------- UPLOADS ----------------
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.asset_path }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: release_assets/
+
+      - name: Download macOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg
+          path: release_assets/
+
+      - name: Download Ubuntu Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-deb
+          path: release_assets/
+
+      - name: Publish Release with Binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_assets/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # -------------------------------------------------------------
+      # GENERATE RELEASE NOTES & UPDATE version.json ON main
+      # -------------------------------------------------------------
+      - name: Generate Notes and Update version.json on main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          CLEAN_VER="${TAG_NAME#v}"
+          REPO="${{ github.repository }}"
+
+          # 1. Fetch GitHub's auto-generated release notes using GitHub CLI
+          RAW_NOTES=$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${REPO}/releases/generate-notes" \
+            -f tag_name="${TAG_NAME}" \
+            --jq '.body' 2>/dev/null || echo "")
+
+          # 2. Serialize metadata safely with Python into valid JSON
+          python -c "
+          import json, os
+
+          tag = os.environ['TAG_NAME']
+          clean_ver = os.environ['CLEAN_VER']
+          repo = os.environ['REPO']
+          notes = os.environ.get('RAW_NOTES', '').strip()
+
+          data = {
+              'version': clean_ver,
+              'release_notes': notes if notes else f'Automated release {tag}',
+              'windows': {
+                  'url': f'https://github.com/{repo}/releases/download/{tag}/CourseApp-v{clean_ver}-Windows-Setup.exe'
+              },
+              'macos': {
+                  'url': f'https://github.com/{repo}/releases/download/{tag}/CourseApp-{tag}-macOS.dmg'
+              },
+              'linux': {
+                  'url': f'https://github.com/{repo}/releases/download/{tag}/CourseApp-{tag}-amd64.deb'
+              }
+          }
+
+          with open('version.json', 'w', encoding='utf-8') as f:
+              json.dump(data, f, indent=2, ensure_ascii=False)
+          "
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+          CLEAN_VER: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          RAW_NOTES: ${{ env.RAW_NOTES }}
+
+      - name: Commit and Push Updated version.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          git commit -m "chore: bump version.json to ${{ github.ref_name }} [skip ci]" || echo "No changes to commit"
+          git push origin main

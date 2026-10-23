@@ -1,0 +1,21 @@
+{
+  "course_id": "course_1",
+  "title": "Course 1: Introduction to Python & PySide6",
+  "description": "Offline embedded course bundled in Version 1. Free starter module.",
+  "version_introduced": "1.0.0",
+  "is_free": true,
+  "lessons": [
+    {
+      "id": "c1_l1",
+      "title": "Lesson 1: PySide6 Architecture & Event Loop",
+      "duration": "15 mins",
+      "content": "PySide6 provides Python bindings for Qt. Understand QApplication, QWidget, Signals & Slots."
+    },
+    {
+      "id": "c1_l2",
+      "title": "Lesson 2: Offline Desktop Player Design",
+      "duration": "20 mins",
+      "content": "Designing stateful applications with persistent storage and offline asset caching."
+    }
+  ]
+}
