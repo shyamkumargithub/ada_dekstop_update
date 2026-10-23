@@ -10,8 +10,12 @@ from PySide6.QtCore import (
     Qt,
     Slot,
 )
+try:
+    from PySide6.QtGui import QAction
+except ImportError:
+    from PySide6.QtWidgets import QAction
+
 from PySide6.QtWidgets import (
-    QAction,
     QApplication,
     QDialog,
     QFormLayout,

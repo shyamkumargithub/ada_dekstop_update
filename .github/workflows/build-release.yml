@@ -129,8 +129,12 @@ jobs:
 
           pyinstaller --noconfirm --onedir --windowed \
             --name "CourseApp" \
+            --osx-bundle-identifier "com.adathecoder.courseapp" \
             --add-data "assets:assets" \
             main.py
+
+          # Ad-hoc codesign the entire bundle recursively so Gatekeeper validates it
+          codesign --force --deep --sign - "dist/CourseApp.app"
 
           TAG_NAME="${{ github.ref_name }}"
           hdiutil create -volname "CourseApp" -srcfolder "dist/CourseApp.app" -ov -format UDZO "dist/CourseApp-${TAG_NAME}-macOS.dmg"
