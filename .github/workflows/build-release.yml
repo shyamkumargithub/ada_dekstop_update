@@ -99,12 +99,25 @@ jobs:
             --add-data "assets;assets" `
             main.py
 
-      - name: Compile Windows Installer
+      - name: Install Inno Setup
         if: runner.os == 'Windows'
-        uses: Minisug/inno-setup-action@v1
-        with:
-          path: installer.iss
-          options: /DMyAppVersion=${{ env.CLEAN_VERSION }}
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress
+
+      - name: Compile Windows Installer (Inno Setup)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $cleanVersion = "${{ env.CLEAN_VERSION }}"
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe"
+          }
+          if (-not (Test-Path $iscc)) {
+            $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          }
+          & $iscc "/DMyAppVersion=$cleanVersion" installer.iss
 
       # ---------------- MACOS BUILD ----------------
       - name: Inject Version & Build macOS
@@ -116,14 +129,11 @@ jobs:
 
           pyinstaller --noconfirm --onedir --windowed \
             --name "CourseApp" \
-            --icon "assets/icon.ico" \
             --add-data "assets:assets" \
             main.py
 
-          npm install -g create-dmg
-          create-dmg dist/CourseApp.app dist/ || true
           TAG_NAME="${{ github.ref_name }}"
-          mv dist/CourseApp*.dmg "dist/CourseApp-${TAG_NAME}-macOS.dmg"
+          hdiutil create -volname "CourseApp" -srcfolder "dist/CourseApp.app" -ov -format UDZO "dist/CourseApp-${TAG_NAME}-macOS.dmg"
 
       # ---------------- UBUNTU BUILD ----------------
       - name: Install Linux Libs & Build
@@ -191,23 +201,11 @@ jobs:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download Windows Artifact
+      - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-installer
-          path: release_assets/
-
-      - name: Download macOS Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-dmg
-          path: release_assets/
-
-      - name: Download Ubuntu Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ubuntu-deb
-          path: release_assets/
+          path: release_assets
+          merge-multiple: true
 
       - name: Publish Release with Binaries
         uses: softprops/action-gh-release@v2
